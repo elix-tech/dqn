@@ -1,0 +1,2 @@
+# DQN in Keras + TensorFlow + OpenAI Gym
+This is an implementation of DQN (based on [Mnih et al., 2015](http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html)) in Keras + TensorFlow + OpenAI Gym in [this blog post](https://elix-tech.github.io/ja/2016/06/29/dqn-ja.html).

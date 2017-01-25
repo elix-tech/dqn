@@ -161,7 +161,7 @@ class Agent():
                 self.train_network()
 
             # Update target network
-            if self.t % TARGET_UPDATE_INTERVAL == 0:
+            if self.t % TARGET_UPDATE_INTERVAL * TRAIN_INTERVAL == 0:
                 self.sess.run(self.update_target_network)
 
             # Save network

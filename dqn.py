@@ -9,7 +9,7 @@ from collections import deque
 from skimage.color import rgb2gray
 from skimage.transform import resize
 from keras.models import Sequential
-from keras.layers import Convolution2D, Flatten, Dense
+from keras.layers import Conv2D, Flatten, Dense
 
 KERAS_BACKEND = 'tensorflow'
 
@@ -75,12 +75,12 @@ class Agent():
         self.sess = tf.InteractiveSession()
         self.saver = tf.train.Saver(q_network_weights)
         self.summary_placeholders, self.update_ops, self.summary_op = self.setup_summary()
-        self.summary_writer = tf.train.SummaryWriter(SAVE_SUMMARY_PATH, self.sess.graph)
+        self.summary_writer = tf.summary.FileWriter(SAVE_SUMMARY_PATH, self.sess.graph)
 
         if not os.path.exists(SAVE_NETWORK_PATH):
             os.makedirs(SAVE_NETWORK_PATH)
 
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
         # Load network
         if LOAD_NETWORK:
@@ -91,14 +91,14 @@ class Agent():
 
     def build_network(self):
         model = Sequential()
-        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', input_shape=(STATE_LENGTH, FRAME_WIDTH, FRAME_HEIGHT)))
-        model.add(Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu'))
-        model.add(Convolution2D(64, 3, 3, subsample=(1, 1), activation='relu'))
+        model.add(Conv2D(32, (8, 8), strides=(4, 4), activation='relu', input_shape=(FRAME_WIDTH, FRAME_HEIGHT, STATE_LENGTH)))
+        model.add(Conv2D(64, (4, 4), strides=(2, 2), activation='relu'))
+        model.add(Conv2D(64, (3, 3), strides=(1, 1), activation='relu'))
         model.add(Flatten())
         model.add(Dense(512, activation='relu'))
         model.add(Dense(self.num_actions))
 
-        s = tf.placeholder(tf.float32, [None, STATE_LENGTH, FRAME_WIDTH, FRAME_HEIGHT])
+        s = tf.placeholder(tf.float32, [None, FRAME_WIDTH, FRAME_HEIGHT, STATE_LENGTH])
         q_values = model(s)
 
         return s, q_values, model
@@ -109,7 +109,7 @@ class Agent():
 
         # Convert action to one hot vector
         a_one_hot = tf.one_hot(a, self.num_actions, 1.0, 0.0)
-        q_value = tf.reduce_sum(tf.mul(self.q_values, a_one_hot), reduction_indices=1)
+        q_value = tf.reduce_sum(tf.multiply(self.q_values, a_one_hot), reduction_indices=1)
 
         # Clip the error, the loss is quadratic when the error is in (-1, 1), and linear outside of that region
         error = tf.abs(y - q_value)
@@ -124,9 +124,9 @@ class Agent():
 
     def get_initial_state(self, observation, last_observation):
         processed_observation = np.maximum(observation, last_observation)
-        processed_observation = np.uint8(resize(rgb2gray(processed_observation), (FRAME_WIDTH, FRAME_HEIGHT)) * 255)
+        processed_observation = np.uint8(resize(rgb2gray(processed_observation), (FRAME_WIDTH, FRAME_HEIGHT), mode="constant") * 255)
         state = [processed_observation for _ in xrange(STATE_LENGTH)]
-        return np.stack(state, axis=0)
+        return np.stack(state, axis=2)
 
     def get_action(self, state):
         action = self.repeated_action
@@ -145,7 +145,7 @@ class Agent():
         return action
 
     def run(self, state, action, reward, terminal, observation):
-        next_state = np.append(state[1:, :, :], observation, axis=0)
+        next_state = np.append(state[:, :, 1:], observation, axis=2)
 
         # Clip all positive rewards at 1 and all negative rewards at -1, leaving 0 rewards unchanged
         reward = np.sign(reward)
@@ -240,17 +240,17 @@ class Agent():
 
     def setup_summary(self):
         episode_total_reward = tf.Variable(0.)
-        tf.scalar_summary(ENV_NAME + '/Total Reward/Episode', episode_total_reward)
+        tf.summary.scalar(ENV_NAME + '/Total Reward/Episode', episode_total_reward)
         episode_avg_max_q = tf.Variable(0.)
-        tf.scalar_summary(ENV_NAME + '/Average Max Q/Episode', episode_avg_max_q)
+        tf.summary.scalar(ENV_NAME + '/Average Max Q/Episode', episode_avg_max_q)
         episode_duration = tf.Variable(0.)
-        tf.scalar_summary(ENV_NAME + '/Duration/Episode', episode_duration)
+        tf.summary.scalar(ENV_NAME + '/Duration/Episode', episode_duration)
         episode_avg_loss = tf.Variable(0.)
-        tf.scalar_summary(ENV_NAME + '/Average Loss/Episode', episode_avg_loss)
+        tf.summary.scalar(ENV_NAME + '/Average Loss/Episode', episode_avg_loss)
         summary_vars = [episode_total_reward, episode_avg_max_q, episode_duration, episode_avg_loss]
         summary_placeholders = [tf.placeholder(tf.float32) for _ in xrange(len(summary_vars))]
         update_ops = [summary_vars[i].assign(summary_placeholders[i]) for i in xrange(len(summary_vars))]
-        summary_op = tf.merge_all_summaries()
+        summary_op = tf.summary.merge_all()
         return summary_placeholders, update_ops, summary_op
 
     def load_network(self):
@@ -278,8 +278,8 @@ class Agent():
 
 def preprocess(observation, last_observation):
     processed_observation = np.maximum(observation, last_observation)
-    processed_observation = np.uint8(resize(rgb2gray(processed_observation), (FRAME_WIDTH, FRAME_HEIGHT)) * 255)
-    return np.reshape(processed_observation, (1, FRAME_WIDTH, FRAME_HEIGHT))
+    processed_observation = np.uint8(resize(rgb2gray(processed_observation), (FRAME_WIDTH, FRAME_HEIGHT), mode="constant") * 255)
+    return np.reshape(processed_observation, (FRAME_WIDTH, FRAME_HEIGHT, 1))
 
 
 def main():

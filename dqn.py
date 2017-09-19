@@ -67,7 +67,7 @@ class Agent():
         target_network_weights = target_network.trainable_weights
 
         # Define target network update operation
-        self.update_target_network = [target_network_weights[i].assign(q_network_weights[i]) for i in xrange(len(target_network_weights))]
+        self.update_target_network = [target_network_weights[i].assign(q_network_weights[i]) for i in range(len(target_network_weights))]
 
         # Define loss and gradient update operation
         self.a, self.y, self.loss, self.grad_update = self.build_training_op(q_network_weights)
@@ -125,7 +125,7 @@ class Agent():
     def get_initial_state(self, observation, last_observation):
         processed_observation = np.maximum(observation, last_observation)
         processed_observation = np.uint8(resize(rgb2gray(processed_observation), (FRAME_WIDTH, FRAME_HEIGHT)) * 255)
-        state = [processed_observation for _ in xrange(STATE_LENGTH)]
+        state = [processed_observation for _ in range(STATE_LENGTH)]
         return np.stack(state, axis=0)
 
     def get_action(self, state):
@@ -178,7 +178,7 @@ class Agent():
             if self.t >= INITIAL_REPLAY_SIZE:
                 stats = [self.total_reward, self.total_q_max / float(self.duration),
                         self.duration, self.total_loss / (float(self.duration) / float(TRAIN_INTERVAL))]
-                for i in xrange(len(stats)):
+                for i in range(len(stats)):
                     self.sess.run(self.update_ops[i], feed_dict={
                         self.summary_placeholders[i]: float(stats[i])
                     })
@@ -248,8 +248,8 @@ class Agent():
         episode_avg_loss = tf.Variable(0.)
         tf.scalar_summary(ENV_NAME + '/Average Loss/Episode', episode_avg_loss)
         summary_vars = [episode_total_reward, episode_avg_max_q, episode_duration, episode_avg_loss]
-        summary_placeholders = [tf.placeholder(tf.float32) for _ in xrange(len(summary_vars))]
-        update_ops = [summary_vars[i].assign(summary_placeholders[i]) for i in xrange(len(summary_vars))]
+        summary_placeholders = [tf.placeholder(tf.float32) for _ in range(len(summary_vars))]
+        update_ops = [summary_vars[i].assign(summary_placeholders[i]) for i in range(len(summary_vars))]
         summary_op = tf.merge_all_summaries()
         return summary_placeholders, update_ops, summary_op
 
@@ -287,10 +287,10 @@ def main():
     agent = Agent(num_actions=env.action_space.n)
 
     if TRAIN:  # Train mode
-        for _ in xrange(NUM_EPISODES):
+        for _ in range(NUM_EPISODES):
             terminal = False
             observation = env.reset()
-            for _ in xrange(random.randint(1, NO_OP_STEPS)):
+            for _ in range(random.randint(1, NO_OP_STEPS)):
                 last_observation = observation
                 observation, _, _, _ = env.step(0)  # Do nothing
             state = agent.get_initial_state(observation, last_observation)
@@ -303,10 +303,10 @@ def main():
                 state = agent.run(state, action, reward, terminal, processed_observation)
     else:  # Test mode
         # env.monitor.start(ENV_NAME + '-test')
-        for _ in xrange(NUM_EPISODES_AT_TEST):
+        for _ in range(NUM_EPISODES_AT_TEST):
             terminal = False
             observation = env.reset()
-            for _ in xrange(random.randint(1, NO_OP_STEPS)):
+            for _ in range(random.randint(1, NO_OP_STEPS)):
                 last_observation = observation
                 observation, _, _, _ = env.step(0)  # Do nothing
             state = agent.get_initial_state(observation, last_observation)

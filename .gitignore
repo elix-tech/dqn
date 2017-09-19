@@ -1,3 +1,4 @@
 *.py[cod]
 .DS_Store
 .Python
+.idea
